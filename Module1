@@ -1,0 +1,162 @@
+Option Explicit
+
+Declare PtrSafe Function SetCursorPos Lib "user32" (ByVal x As Long, ByVal y As Long) As Long
+Declare PtrSafe Function mouse_event Lib "user32" (ByVal dwFlags As Long, ByVal dx As Long, ByVal dy As Long, ByVal cButtons As Long, ByVal dwExtraInfo As Long) As Long
+
+Private Declare PtrSafe Function GetSystemMetrics Lib "user32" (ByVal nIndex As Long) As Long
+Private Declare PtrSafe Function GetMonitorInfo Lib "user32" Alias "GetMonitorInfoA" (ByVal hMonitor As LongPtr, ByRef lpmi As Any) As Long
+
+Private Declare PtrSafe Function MonitorFromWindow Lib "user32" (ByVal hwnd As LongPtr, ByVal dwFlags As Long) As LongPtr
+
+Private Declare PtrSafe Function GetAsyncKeyState Lib "user32" (ByVal vKey As Long) As Integer
+
+Private Const VK_SPACE As Long = &H20
+
+Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+
+Private Const SM_CXSCREEN As Long = 0
+Private Const SM_CYSCREEN As Long = 1
+Private Const MONITOR_DEFAULTTOPRIMARY As Long = &H1
+
+Private screenW As Long
+Private screenH As Long
+
+Private Type RECT
+    Left As Long
+    Top As Long
+    Right As Long
+    Bottom As Long
+End Type
+
+Private Type MONITORINFOEX
+    cbSize As Long
+    rcMonitor As RECT
+    rcWork As RECT
+    dwFlags As Long
+    szDevice As String * 32
+End Type
+
+Sub main()
+
+
+    Debug.Print (GetAllScreenResolutions)
+    
+    Call ClickOnDesktop(screenW * 2, screenH * 2)
+    
+    Application.Wait (Now + TimeValue("0:00:01"))
+    
+    Call BoucleInfinieAvecEchape
+    
+
+End Sub
+
+
+
+Public Sub ClickOnDesktop(x As Long, y As Long)
+    SetCursorPos x, y
+    Application.Wait (Now + TimeValue("0:00:01"))
+    mouse_event &H2, 0, 0, 0, 0 ' Clic gauche enfoncé
+    mouse_event &H4, 0, 0, 0, 0 ' Clic gauche relâché
+End Sub
+
+'
+'Sub TesterGetScreenInfo()
+'    Dim resolution As String
+'    Dim numberOfMonitors As Long
+'
+'    ' Obtenir le format des écrans
+'    resolution = GetAllScreenResolutions()
+'    Debug.Print ("Format de l'écran : " & resolution)
+'
+'End Sub
+
+Public Function GetAllScreenResolutions() As String
+    Dim mi As MONITORINFOEX
+    Dim hMonitor As LongPtr
+    Dim screenResolutions As String
+    Dim monitorCount As Long
+    Dim i As Long
+    
+    mi.cbSize = Len(mi)
+    monitorCount = GetSystemMetrics(80) ' SM_CMONITORS = 80
+    
+    hMonitor = MonitorFromWindow(0&, 1)
+    GetMonitorInfo hMonitor, mi
+    screenW = Abs(mi.rcMonitor.Right - mi.rcMonitor.Left) / 2
+    screenH = Abs(mi.rcMonitor.Bottom - mi.rcMonitor.Top) / 2
+    
+    For i = 1 To monitorCount
+        hMonitor = MonitorFromWindow(0&, i)
+        GetMonitorInfo hMonitor, mi
+        screenResolutions = screenResolutions & "Écran " & i & ": " & _
+            Abs(mi.rcMonitor.Right - mi.rcMonitor.Left) & "x" & _
+            Abs(mi.rcMonitor.Bottom - mi.rcMonitor.Top) & vbCrLf
+    Next i
+    
+    GetAllScreenResolutions = screenResolutions
+End Function
+
+Sub BoucleInfinieAvecEchape()
+
+    Dim stopLoop As Boolean
+    stopLoop = False
+    
+    Dim sense As Boolean
+    sense = False
+    
+    
+    Do While Not stopLoop
+        ' Vérifier si la touche Échap est enfoncée
+        If (GetAsyncKeyState(vbKeyControl) And &H8000) <> 0 Then
+        
+            stopLoop = True
+            
+        End If
+        
+        
+        If sense Then
+        
+            screenW = screenW + 10
+            screenH = screenH + 10
+            sense = False
+        
+        Else
+        
+            screenW = screenW - 10
+            screenH = screenH - 10
+            sense = True
+        
+        End If
+        
+        Call ClickOnDesktop(screenW, screenH)
+        
+        ' Ajouter une pause pour éviter une consommation excessive de ressources
+        Application.Wait (Now + TimeValue("0:00:01"))
+
+    Loop
+    
+    Application.WindowState = xlMaximized
+    Call MsgBox("Arrété avec succès", vbOKOnly, "Succes")
+    
+End Sub
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+
+    Dim osheet As Feuil1
+    Set osheet = Excel.ActiveSheet
+    
+    osheet.Shapes.Range(Array("Up Arrow 1")).Visible = True
+
+
+End Sub
+
+
+Private Sub Workbook_Open()
+
+    Dim osheet As Feuil1
+    Set osheet = Excel.ActiveSheet
+
+    osheet.Shapes.Range(Array("Up Arrow 3")).Visible = False
+    
+End Sub
+
